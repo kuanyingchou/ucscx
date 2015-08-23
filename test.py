@@ -3,7 +3,7 @@ from lxml import etree, html
 import re
 import datetime
 import time
-import csv
+import unicodecsv
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36',
@@ -79,7 +79,7 @@ def get_section(oid, sid):
 
     active = xml.xpath('//IsActive')
     if not active:
-        continue
+        return None
 
     section = {}
     section['id'] = to_str(xml.xpath('//data/Section/SectionNumber'))
@@ -88,13 +88,17 @@ def get_section(oid, sid):
     start_date = xml.xpath('//StartDate')
     start_date_field = to_str(start_date)
     d = get_date(start_date_field)
-    section['start'] = d.strftime('%Y-%m-%d')
-    section['day'] = d.isoweekday()
-    section['time'] = get_time(start_date_field)
+    if d is not None:
+        section['start'] = d.strftime('%Y-%m-%d')
+        section['day'] = d.isoweekday()
+    t = get_time(start_date_field)
+    if t is not None:
+        section['time'] = t
 
     end_date = xml.xpath('//EndDate')
     d = get_date(to_str(end_date))
-    section['end'] = d.strftime('%Y-%m-%d')
+    if d is not None:
+        section['end'] = d.strftime('%Y-%m-%d')
 
     section['instructors'] = to_str(xml.xpath('//InstructorName'))
     section['cost'] = to_str(xml.xpath('//Cost'))
@@ -106,22 +110,35 @@ def get_section(oid, sid):
     # print section
     return section
 
-def get_sections(cid):
+def get_sections(cid, writer):
     os = get_section_dict(cid)
     for oid, sid_list in os.iteritems():
         
         r = requests.get(URL_OFFERING, {'OfferingID': oid}, headers=HEADERS)
         xml = etree.fromstring(r.content)
-        name = xml.xpath('//Offering/Name')
+        name = to_str(xml.xpath('//Offering/Name'))
+        print name
 
         for sid in sid_list:
             s = get_section(oid, sid)
-            s['name'] = to_str(name)
+            if not s:
+                continue
+            s['name'] = name
+            writer.writerow(s)
 
-        time.sleep(0.5)
+        time.sleep(0.5) # be a good boy; don't stress the server
 
 if __name__ == '__main__':
-    ids = get_catalog_ids()
-    for i in ids:
-        get_sections(i)
-        break
+    with open('courses.csv', 'wb') as csvfile:
+        writer = unicodecsv.DictWriter(csvfile, [
+            'id', 'name', 'location', 'start', 'end', 'day', 'time', 'cost', 'credit', 'instructors'
+            ])
+        writer.writeheader()
+        catalogs = get_catalog_ids()
+        count = 0
+        for cat in catalogs:
+            get_sections(cat, writer)
+            count += 1
+            print '%d / %d' % (count, len(catalogs))
+
+
