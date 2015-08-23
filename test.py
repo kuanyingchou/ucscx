@@ -104,6 +104,7 @@ def get_section(oid, sid):
     section['instructors'] = to_str(xml.xpath('//InstructorName'))
     section['cost'] = to_str(xml.xpath('//Cost'))
     section['credit'] = to_str(xml.xpath('//CreditHours'))
+    section['link'] = 'http://course.ucsc-extension.edu/modules/shop/index.html?action=section&OfferingID=%s&SectionID=%s' % (oid, sid)
 
     # description = xml.xpath('//Description');
     # print html.fromstring(to_str(description)).text_content()
@@ -139,7 +140,7 @@ if __name__ == '__main__':
     with open('courses.csv', 'wb') as csvfile:
         writer = unicodecsv.DictWriter(csvfile, [
             'id', 'name', 'location', 'start', 'end', 'day', 
-            'time', 'cost', 'credit', 'instructors', 'catalog' ])
+            'time', 'cost', 'credit', 'instructors', 'catalog', 'link' ])
         writer.writeheader()
         catalogs = get_catalogs()
         count = 0
@@ -147,6 +148,5 @@ if __name__ == '__main__':
             get_sections(cid, writer)
             count += 1
             print '%d / %d finished' % (count, len(catalogs))
-            break
 
 
