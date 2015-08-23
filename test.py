@@ -33,7 +33,7 @@ def get_section_dict():
     # print os
     return os
 
-def to_field(elem):
+def to_str(elem):
     if not elem:
         return None
     elif isinstance(elem, list):
@@ -89,27 +89,27 @@ def get_sections():
                 continue
 
             section = {}
-            section['name'] = to_field(name)
-            section['id'] = to_field(xml.xpath('//data/Section/SectionNumber'))
-            section['location'] = to_field(xml.xpath('//SiteName'))
+            section['name'] = to_str(name)
+            section['id'] = to_str(xml.xpath('//data/Section/SectionNumber'))
+            section['location'] = to_str(xml.xpath('//SiteName'))
 
             start_date = xml.xpath('//StartDate')
-            start_date_field = to_field(start_date)
+            start_date_field = to_str(start_date)
             d = get_date(start_date_field)
             section['start'] = d.strftime('%Y-%m-%d')
             section['day'] = d.isoweekday()
             section['time'] = get_time(start_date_field)
 
             end_date = xml.xpath('//EndDate')
-            d = get_date(to_field(end_date))
+            d = get_date(to_str(end_date))
             section['end'] = d.strftime('%Y-%m-%d')
 
-            section['instructors'] = to_field(xml.xpath('//InstructorName'))
-            section['cost'] = to_field(xml.xpath('//Cost'))
-            section['credit'] = to_field(xml.xpath('//CreditHours'))
+            section['instructors'] = to_str(xml.xpath('//InstructorName'))
+            section['cost'] = to_str(xml.xpath('//Cost'))
+            section['credit'] = to_str(xml.xpath('//CreditHours'))
 
             # description = xml.xpath('//Description');
-            # print html.fromstring(to_field(description)).text_content()
+            # print html.fromstring(to_str(description)).text_content()
 
             print section
         # time.sleep(0.5)
