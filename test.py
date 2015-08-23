@@ -15,12 +15,13 @@ URL_OFFERING = 'http://course.ucsc-extension.edu/modules/shop/offeringOverview.a
 URL_SECTION = 'http://course.ucsc-extension.edu/modules/shop/defaultSections.action'
 URL_CATALOG = 'http://course.ucsc-extension.edu/modules/shop/searchOfferings.action'
 URL_ALL = 'http://course.ucsc-extension.edu/modules/shop/courseCatalogs.action'
+URL_CATALOG_NAME='http://course.ucsc-extension.edu/modules/shop/catalog.action'
 
-def get_catalog_ids():
+def get_catalogs():
     r = requests.get(URL_ALL, params={}, headers=HEADERS)
     xml = etree.fromstring(r.content)
-    ids = xml.xpath('//Catalog/CatalogID')
-    return [int(i.text) for i in ids]
+    catalogs = xml.xpath('//Catalog/CatalogID')
+    return [int(c.text) for c in catalogs]
 
 def get_section_dict(cid):
     params = {
@@ -112,6 +113,11 @@ def get_section(oid, sid):
 
 def get_sections(cid, writer):
     os = get_section_dict(cid)
+
+    r = requests.get(URL_CATALOG_NAME, {'CatalogID': cid }, headers=HEADERS)
+    xml = etree.fromstring(r.content)
+    cname = to_str(xml.xpath('//data/Catalog/Name'))
+
     for oid, sid_list in os.iteritems():
         
         r = requests.get(URL_OFFERING, {'OfferingID': oid}, headers=HEADERS)
@@ -124,6 +130,7 @@ def get_sections(cid, writer):
             if not s:
                 continue
             s['name'] = name
+            s['catalog'] = cname
             writer.writerow(s)
 
         time.sleep(0.5) # be a good boy; don't stress the server
@@ -131,14 +138,15 @@ def get_sections(cid, writer):
 if __name__ == '__main__':
     with open('courses.csv', 'wb') as csvfile:
         writer = unicodecsv.DictWriter(csvfile, [
-            'id', 'name', 'location', 'start', 'end', 'day', 'time', 'cost', 'credit', 'instructors'
-            ])
+            'id', 'name', 'location', 'start', 'end', 'day', 
+            'time', 'cost', 'credit', 'instructors', 'catalog' ])
         writer.writeheader()
-        catalogs = get_catalog_ids()
+        catalogs = get_catalogs()
         count = 0
-        for cat in catalogs:
-            get_sections(cat, writer)
+        for cid in catalogs:
+            get_sections(cid, writer)
             count += 1
-            print '%d / %d' % (count, len(catalogs))
+            print '%d / %d finished' % (count, len(catalogs))
+            break
 
 
