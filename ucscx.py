@@ -18,12 +18,14 @@ URL_ALL = 'http://course.ucsc-extension.edu/modules/shop/courseCatalogs.action'
 URL_CATALOG_NAME='http://course.ucsc-extension.edu/modules/shop/catalog.action'
 
 def get_catalogs():
+    """ return all catalog ids in a list """
     r = requests.get(URL_ALL, params={}, headers=HEADERS)
     xml = etree.fromstring(r.content)
     catalogs = xml.xpath('//Catalog/CatalogID')
     return [int(c.text) for c in catalogs]
 
 def get_section_dict(cid):
+    """ construct a dictionary of offering ->* section """
     params = {
         'CatalogID': cid,
         'startPosition': 0,
@@ -45,6 +47,7 @@ def get_section_dict(cid):
     return os
 
 def to_str(elem):
+    """ create a string from the return value of xpath() """
     if not elem:
         return None
     elif isinstance(elem, list):
@@ -54,14 +57,17 @@ def to_str(elem):
         return elem.text
 
 def get_date(t):
+    """ create a date from the date time string """
+
     m = re.search(r'(\d{4})\.(\d{2})\.(\d{2})', t)
     if m:
         y, m, d = m.group(1), m.group(2), m.group(3)
-        return datetime.datetime(year=int(y), month=int(m), day=int(d)) #'%s-%s-%s' % (y, m, d)
+        return datetime.datetime(year=int(y), month=int(m), day=int(d)) 
     else:
         return None
 
-def get_time(t):
+def get_time_str(t):
+    """ get the time part from the date time string """
     m = re.search(r'\d{2}:\d{2}:\d{2}', t)
     if m:
         return m.group(0)
@@ -69,6 +75,8 @@ def get_time(t):
         return None
 
 def get_section(oid, sid):
+    """ return a dictionary from section data """
+
     params= {
         'OfferingID': oid,
         'SectionID':sid
@@ -92,7 +100,7 @@ def get_section(oid, sid):
     if d is not None:
         section['start'] = d.strftime('%Y-%m-%d')
         section['day'] = d.isoweekday()
-    t = get_time(start_date_field)
+    t = get_time_str(start_date_field)
     if t is not None:
         section['time'] = t
 
@@ -113,6 +121,8 @@ def get_section(oid, sid):
     return section
 
 def get_sections(cid, writer):
+    """ write all sections of a category with a writer """
+
     os = get_section_dict(cid)
 
     r = requests.get(URL_CATALOG_NAME, {'CatalogID': cid }, headers=HEADERS)
