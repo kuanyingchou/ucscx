@@ -22,14 +22,14 @@ def get(path, params):
         print(e, file=sys.stderr)
         sys.exit()
 
-def get_catalogs(): # 4. Functions
+def get_catalog_ids(): # 4. Functions
     """ return all catalog ids in a list """
     r = get(URL_ALL, params={})
     xml = etree.fromstring(r.content)
     catalogs = xml.xpath('//Catalog/CatalogID')
     return [int(c.text) for c in catalogs]  # 2. list comprehension
 
-def get_section_dict(cid):
+def get_offering_section_dict(cid):
     """ construct a dictionary of offering ->* section """
     params = {
         'CatalogID': cid,
@@ -125,20 +125,23 @@ def get_section(oid, sid):
     # print section
     return section
 
-def get_sections(cid, writer):
-    """ write all sections of a category with a writer """
-
-    os = get_section_dict(cid)
-
+def get_catalog_name(cid):
     r = get(URL_CATALOG_NAME, {'CatalogID': cid })
     xml = etree.fromstring(r.content)
-    cname = to_str(xml.xpath('//data/Catalog/Name'))
+    return to_str(xml.xpath('//data/Catalog/Name'))
+
+def get_offering_name(oid):
+    r = get(URL_OFFERING, {'OfferingID': oid})
+    xml = etree.fromstring(r.content)
+    return to_str(xml.xpath('//Offering/Name'))
+
+def get_sections(cid):
+
+    os = get_offering_section_dict(cid)
 
     for oid, sid_list in os.iteritems():
         
-        r = get(URL_OFFERING, {'OfferingID': oid})
-        xml = etree.fromstring(r.content)
-        name = to_str(xml.xpath('//Offering/Name'))
+        name = get_offering_name(oid)
         # print name
 
         for sid in sid_list:
@@ -146,21 +149,55 @@ def get_sections(cid, writer):
             if not s:
                 continue
             s['name'] = name
-            s['catalog'] = cname
-            writer.writerow(s)
+            yield s;
 
         time.sleep(0.2) # be a good boy; don't stress the server
 
+def get_all_sections():
+    print('building index...', file=sys.stderr)
+    cids = get_catalog_ids()
+    oc = {} # offering to catalog names
+    os = {} # offering to sections
+    count = 0
+    for cid in cids:
+        cname = get_catalog_name(cid)
+        cos = get_offering_section_dict(cid) # offering to sections in a catalog
+        for oid in cos:
+            if oid in oc:
+                oc[oid].append(cname)
+            else:
+                oc[oid] = [cname]
+
+            if oid not in os:
+                os[oid] = cos[oid]
+            # print(oid)
+        count += 1
+        print('\r%d/%d completed' % (count, len(cids)), file=sys.stderr, end='')
+
+    print(file=sys.stderr)
+    # print(os)
+    # print(oc)
+    
+    for oid, sids in os.iteritems():
+        oname = get_offering_name(oid)
+        for sid in sids:
+            s = get_section(oid, sid)
+            if not s:
+                continue
+            s['name'] = oname
+            s['catalogs'] = ';'.join(oc[oid])
+            yield s;
+        time.sleep(0.2) # be a good boy; don't stress the server
+
+
 if __name__ == '__main__':
+
     writer = unicodecsv.DictWriter(sys.stdout, [
         'id', 'name', 'location', 'start', 'end', 'day', 
-        'time', 'cost', 'credit', 'instructors', 'catalog', 'link' ])
+        'time', 'cost', 'credit', 'instructors', 'catalogs', 'link' ])
     writer.writeheader()
-    catalogs = get_catalogs()
-    count = 0
-    for cid in catalogs:
-        get_sections(cid, writer)
-        count += 1
-        # print '%d / %d finished' % (count, len(catalogs))
+
+    for s in get_all_sections():
+        writer.writerow(s)
 
 
