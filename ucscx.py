@@ -1,28 +1,33 @@
-import requests
+from __future__ import print_function # 7. Importing external modules
+import requests 
 from lxml import etree, html
 import re
 import datetime
 import time
 import unicodecsv
+import sys
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1985.125 Safari/537.36',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Host': 'course.ucsc-extension.edu',
-    'Referer': 'http://course.ucsc-extension.edu/modules/shop/index.html' 
-}
-URL_OFFERING = 'http://course.ucsc-extension.edu/modules/shop/offeringOverview.action'
-URL_SECTION = 'http://course.ucsc-extension.edu/modules/shop/defaultSections.action'
-URL_CATALOG = 'http://course.ucsc-extension.edu/modules/shop/searchOfferings.action'
-URL_ALL = 'http://course.ucsc-extension.edu/modules/shop/courseCatalogs.action'
-URL_CATALOG_NAME='http://course.ucsc-extension.edu/modules/shop/catalog.action'
+URL_BASE = 'http://course.ucsc-extension.edu/modules/shop'
+URL_OFFERING = '/offeringOverview.action'
+URL_SECTION = '/defaultSections.action'
+URL_CATALOG = '/searchOfferings.action'
+URL_ALL = '/courseCatalogs.action'
+URL_CATALOG_NAME='/catalog.action'
 
-def get_catalogs():
+def get(path, params):
+    # 8. Error checks using try-except
+    try: 
+        return requests.get(URL_BASE + path, params = params)
+    except Exception as e:
+        print(e, file=sys.stderr)
+        sys.exit()
+
+def get_catalogs(): # 4. Functions
     """ return all catalog ids in a list """
-    r = requests.get(URL_ALL, params={}, headers=HEADERS)
+    r = get(URL_ALL, params={})
     xml = etree.fromstring(r.content)
     catalogs = xml.xpath('//Catalog/CatalogID')
-    return [int(c.text) for c in catalogs]
+    return [int(c.text) for c in catalogs]  # 2. list comprehension
 
 def get_section_dict(cid):
     """ construct a dictionary of offering ->* section """
@@ -31,7 +36,7 @@ def get_section_dict(cid):
         'startPosition': 0,
         'pageSize': 500 # should be enough
     }
-    r = requests.get(URL_CATALOG, params=params, headers=HEADERS)
+    r = get(URL_CATALOG, params=params)
     xml = etree.fromstring(r.content)
     sections = xml.xpath('//Section')
 
@@ -59,7 +64,7 @@ def to_str(elem):
 def get_date(t):
     """ create a date from the date time string """
 
-    m = re.search(r'(\d{4})\.(\d{2})\.(\d{2})', t)
+    m = re.search(r'(\d{4})\.(\d{2})\.(\d{2})', t) # 10. Regular expression
     if m:
         y, m, d = m.group(1), m.group(2), m.group(3)
         return datetime.datetime(year=int(y), month=int(m), day=int(d)) 
@@ -82,7 +87,7 @@ def get_section(oid, sid):
         'SectionID':sid
     }
 
-    r = requests.get(URL_SECTION, params=params, headers=HEADERS)
+    r = get(URL_SECTION, params=params)
     xml = etree.fromstring(r.content)
 
 
@@ -125,16 +130,16 @@ def get_sections(cid, writer):
 
     os = get_section_dict(cid)
 
-    r = requests.get(URL_CATALOG_NAME, {'CatalogID': cid }, headers=HEADERS)
+    r = get(URL_CATALOG_NAME, {'CatalogID': cid })
     xml = etree.fromstring(r.content)
     cname = to_str(xml.xpath('//data/Catalog/Name'))
 
     for oid, sid_list in os.iteritems():
         
-        r = requests.get(URL_OFFERING, {'OfferingID': oid}, headers=HEADERS)
+        r = get(URL_OFFERING, {'OfferingID': oid})
         xml = etree.fromstring(r.content)
         name = to_str(xml.xpath('//Offering/Name'))
-        print name
+        # print name
 
         for sid in sid_list:
             s = get_section(oid, sid)
@@ -144,19 +149,18 @@ def get_sections(cid, writer):
             s['catalog'] = cname
             writer.writerow(s)
 
-        time.sleep(0.5) # be a good boy; don't stress the server
+        time.sleep(0.2) # be a good boy; don't stress the server
 
 if __name__ == '__main__':
-    with open('courses.csv', 'wb') as csvfile:
-        writer = unicodecsv.DictWriter(csvfile, [
-            'id', 'name', 'location', 'start', 'end', 'day', 
-            'time', 'cost', 'credit', 'instructors', 'catalog', 'link' ])
-        writer.writeheader()
-        catalogs = get_catalogs()
-        count = 0
-        for cid in catalogs:
-            get_sections(cid, writer)
-            count += 1
-            print '%d / %d finished' % (count, len(catalogs))
+    writer = unicodecsv.DictWriter(sys.stdout, [
+        'id', 'name', 'location', 'start', 'end', 'day', 
+        'time', 'cost', 'credit', 'instructors', 'catalog', 'link' ])
+    writer.writeheader()
+    catalogs = get_catalogs()
+    count = 0
+    for cid in catalogs:
+        get_sections(cid, writer)
+        count += 1
+        # print '%d / %d finished' % (count, len(catalogs))
 
 
