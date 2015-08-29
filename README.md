@@ -13,8 +13,16 @@ On Ubuntu, you may also need to install additional packages with the following c
 
 Just run `ucscx.py` and redirect the output to a file:
     
-    python ucscx.py > courses.csv
+    python ucscx.py > courses.tsv
 
-Then import the csv file to the application of your choice, e.g. Google Sheets, Microsoft Excel, Sqlite, etc.
+Then import the tsv file to the application of your choice, e.g. Google Sheets, Microsoft Excel, Sqlite, or shell commands.
+
+For example, to get the ids and names of all the offerings in Bash, you can run:
+
+    cut -d$'\t' -f1,2 courses.tsv
+
+To get all the Java courses, run:
+
+    cut -d$'\t' -f1,2 courses.tsv | grep -i java
 
 Tested on OS X 10.11 Beta (15A262e) with Python 2.7.8.
