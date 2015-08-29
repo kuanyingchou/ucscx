@@ -51,15 +51,18 @@ def get_offering_section_dict(cid):
     # print os
     return os
 
+def tr_tab(s):
+    return s.strip().replace('\t', '    ')
+
 def to_str(elem):
     """ create a string from the return value of xpath() """
     if not elem:
         return None
     elif isinstance(elem, list):
-        return ';'.join(e.text for e in elem 
+        return ';'.join(tr_tab(e.text) for e in elem 
                 if e is not None and e.text is not None)
     else:
-        return elem.text
+        return tr_tab(elem.text)
 
 def get_date(t):
     """ create a date from the date time string """
@@ -84,7 +87,7 @@ def get_section(oid, sid):
 
     params= {
         'OfferingID': oid,
-        'SectionID':sid
+        'SectionID': sid
     }
 
     r = get(URL_SECTION, params=params)
@@ -175,6 +178,7 @@ def get_all_sections():
         print('\r%d/%d completed' % (count, len(cids)), file=sys.stderr, end='')
 
     print(file=sys.stderr)
+    print('writing courses...', file=sys.stderr)
     # print(os)
     # print(oc)
     
@@ -201,4 +205,5 @@ if __name__ == '__main__':
     for s in get_all_sections():
         writer.writerow(s)
 
+    print('done', file=sys.stderr)
 
