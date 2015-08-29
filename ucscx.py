@@ -194,7 +194,8 @@ if __name__ == '__main__':
 
     writer = unicodecsv.DictWriter(sys.stdout, [
         'id', 'name', 'location', 'start', 'end', 'day', 
-        'time', 'cost', 'credit', 'instructors', 'catalogs', 'link' ])
+        'time', 'cost', 'credit', 'instructors', 'catalogs', 'link' ],
+        delimiter='\t') 
     writer.writeheader()
 
     for s in get_all_sections():
